@@ -1,0 +1,117 @@
+---
+title: "ARC Subaward Analysis"
+author: "Nicholas Chen"
+date: 2023-10-04
+output: 
+  bookdown::html_document2:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+    reader-mode: true
+    embed-resources: true
+    code_folding: hide
+number-sections: true
+code-line-numbers: true
+code-overflow: wrap
+code-link: true
+---
+
+## Analysis of USAID Sub-award Spending
+
+### Creating Dataframe
+
+The following analysis walks through how to collate and analyze USASpending 
+contracts data subawards. All functions used documented in roxygen.
+
+Begin by loading in the data. Sample data used in this analysis is a complete 
+data download from USASpending filtering for all contracts where 
+"Awarding Agency" = USAID as of 10/1/2023.
+
+```{r}
+library(tidyverse)
+prim_df <- read.csv("./data/Contracts_PrimeAwardSummaries_2023-10-01_H04M40S14_1.csv")
+sub_df <- read.csv("./data/Contracts_Subawards_2023-10-01_H04M45S53_1.csv")
+```
+
+
+Clean and join the data so primary awards are matched with subaward data.
+```{r}
+source("./.R/subaward_df.R")
+subaward_df(prim_df, sub_df, "JoinedData") ## df assigned to JoinedData
+JoinedData %>%
+  slice(1:10) ## view first ten rows
+```
+### Analyzing function
+
+The function subaward_summary returns a dataframe of subaward metrics grouped 
+by parent receiver.
+
+```{r}
+## list of countrycodes and awarding_office_codes
+prim_df %>%
+  group_by(awarding_office_code, awarding_office_name) %>%
+  summarize() -> awarding_office_codes
+prim_df %>%
+  group_by(primary_place_of_performance_country_code, 
+           primary_place_of_performance_country_name) %>%
+  summarize() -> country_codes
+View(awarding_office_codes)
+View(country_codes)
+```
+
+
+The following returns a summarydf trimmed since the august 2010 directive.  Use
+mmyydd for date filter.  The function uses the following parameters:
+
+joined_df: joined_df from subaward_df
+start_date: yymmdd.  All contracts before are excluded
+contract_threshold: numeric.  All contracts with obligated amounts below excluded
+country_code character: Filters for primary_place_of_performance_country_code
+award_office_code: character. Filters for awarding_office_code
+by_year: logical. If true, divides final summary table by year
+df_name character: Name which you want df saved to
+
+```{r}
+source("./.R/subaward_summary.R")
+subaward_summary(JoinedData, start_date = "2010-08-01", df_name = "after_mandate")
+after_mandate %>%
+  mutate(total_ob = scales::dollar_format()(total_ob)) %>%
+  mutate(subawardedprojects_ob = scales::dollar_format()(subawardedprojects_ob)) %>%
+  View()
+```
+
+After mandate excluding contracts below 25k
+
+```{r}
+subaward_summary(JoinedData, start_date = "2010-08-01", contract_threshold = 25000, df_name = "exclude_low_ctrcts")
+exclude_low_ctrcts %>%
+  mutate(total_ob = scales::dollar_format()(total_ob)) %>%
+  mutate(subawardedprojects_ob = scales::dollar_format()(subawardedprojects_ob)) %>%
+  View()
+```
+
+
+after mandate excluding low contracts subsetted by year
+
+```{r}
+subaward_summary(JoinedData, start_date = "2010-08-01", 
+                 contract_threshold = 25000, 
+                 df_name = "by_year",
+                 by_year = T)
+by_year %>%
+  mutate(total_ob = scales::dollar_format()(total_ob)) %>%
+  mutate(subawardedprojects_ob = scales::dollar_format()(subawardedprojects_ob)) %>%
+  mutate(aggregate_obs = scales::dollar_format()(aggregate_obs)) %>%
+  View()
+```
+
+Columbia specific
+
+```{r}
+subaward_summary(JoinedData, start_date = "2010-08-01", country_code = "COL", df_name = "col_data")
+col_data %>%
+  mutate(total_ob = scales::dollar_format()(total_ob)) %>%
+  mutate(subawardedprojects_ob = scales::dollar_format()(subawardedprojects_ob)) %>%
+  View()
+```
+
